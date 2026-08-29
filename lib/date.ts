@@ -22,3 +22,13 @@ export function formatDate(iso: string): string {
     const [, m, d] = iso.split('-').map(Number);
     return `${d} ${MONTHS[m - 1]}`;
 }
+
+export function toDate(iso: string): Date {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+export function fromDate(date: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}

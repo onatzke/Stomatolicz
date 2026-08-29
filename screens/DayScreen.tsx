@@ -8,13 +8,14 @@ import Counter from '../components/Counter';
 import FormModal from '../components/FormModal';
 import { colors, spacing } from '../lib/theme';
 import { calculateShare, formatPLN, parsePLN, parsePercent } from '../lib/money';
-import { formatDate, shiftDate, todayISO } from '../lib/date';
+import { formatDate, fromDate, shiftDate, toDate, todayISO } from '../lib/date';
 import {
     addProcedure, deleteProcedureEverywhere, getWorkplace,
     removeProcedure, updatePricing, type Workplace,
 } from '../db/catalog';
 import { getDb } from '../db';
 import { decrement, increment, loadDay, loadOrder, type DayRow } from '../db/entries';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 type Dialog =
     | { kind: 'custom'; row: DayRow }
@@ -39,13 +40,14 @@ export default function DayScreen({ route }: any) {
 
     const orderRef = useRef<number[] | null>(null);
 
+    const [showPicker, setShowPicker] = useState(false);
+
     useFocusEffect(
         useCallback(() => {
             getWorkplace(workplaceId).then(setWorkplace);
         }, [workplaceId]),
     );
 
-    // Zmiana dnia unieważnia zamrożoną kolejność.
     useEffect(() => {
         orderRef.current = null;
     }, [date]);
@@ -252,7 +254,10 @@ export default function DayScreen({ route }: any) {
                 <Pressable hitSlop={8} onPress={() => setDate(shiftDate(date, -1))}>
                     <Text style={s.arrow}>‹</Text>
                 </Pressable>
-                <Pressable onPress={() => setDate(todayISO())}>
+                <Pressable
+                    onPress={() => setShowPicker(true)}
+                    onLongPress={() => setDate(todayISO())}
+                >
                     <Text style={s.date}>{formatDate(date)}</Text>
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => setDate(shiftDate(date, 1))}>
@@ -325,6 +330,19 @@ export default function DayScreen({ route }: any) {
                 <Text style={s.footerCount}>{count} {count === 1 ? 'zabieg' : 'zabiegów'}</Text>
                 <Text style={s.total}>{formatPLN(total)}</Text>
             </View>
+
+            {showPicker && (
+                <DateTimePicker
+                    value={toDate(date)}
+                    mode="date"
+                    display="calendar"
+                    maximumDate={new Date()}
+                    onChange={(event, selected) => {
+                        setShowPicker(false);
+                        if (event.type === 'set' && selected) setDate(fromDate(selected));
+                    }}
+                />
+            )}
 
             <ActionSheet
                 visible={menuFor !== null}
