@@ -76,6 +76,9 @@ export default function WorkplacesScreen({ navigation }: any) {
                 )}
                 ListFooterComponent={
                     <>
+                        <Pressable style={s.add} onPress={() => navigation.navigate('Summary')}>
+                            <Text style={s.addText}>Podsumowanie zarobków</Text>
+                        </Pressable>
                         <Pressable style={s.add} onPress={() => open('new')}>
                             <Text style={s.addText}>+ Dodaj miejsce pracy</Text>
                         </Pressable>
