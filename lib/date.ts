@@ -19,8 +19,13 @@ export function shiftDate(iso: string, days: number): string {
 export function formatDate(iso: string): string {
     if (iso === todayISO()) return 'Dzisiaj';
     if (iso === shiftDate(todayISO(), -1)) return 'Wczoraj';
+    if (iso === shiftDate(todayISO(), 1)) return 'Jutro';
     const [, m, d] = iso.split('-').map(Number);
     return `${d} ${MONTHS[m - 1]}`;
+}
+
+export function isFuture(iso: string): boolean {
+    return iso > todayISO();
 }
 
 export function toDate(iso: string): Date {

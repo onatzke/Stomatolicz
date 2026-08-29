@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import FormModal from '../components/FormModal';
 import { colors, spacing } from '../lib/theme';
@@ -80,7 +80,7 @@ export default function WorkplacesScreen({ navigation }: any) {
                             <Text style={s.addText}>+ Dodaj miejsce pracy</Text>
                         </Pressable>
                         <Text style={s.hint}>
-                            Dotknij, aby ustawić cennik. Przytrzymaj, aby zmienić nazwę lub procent.
+                            Dotknij, aby otworzyć dzień. Przytrzymaj, aby zmienić nazwę lub procent. Po otwarciu przytrzymaj procedure w celu edycji.
                         </Text>
                     </>
                 }

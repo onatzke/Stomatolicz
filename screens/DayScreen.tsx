@@ -8,7 +8,7 @@ import Counter from '../components/Counter';
 import FormModal from '../components/FormModal';
 import { colors, spacing } from '../lib/theme';
 import { calculateShare, formatPLN, parsePLN, parsePercent } from '../lib/money';
-import { formatDate, fromDate, shiftDate, toDate, todayISO } from '../lib/date';
+import { formatDate, fromDate, isFuture, shiftDate, toDate, todayISO } from '../lib/date';
 import {
     addProcedure, deleteProcedureEverywhere, getWorkplace,
     removeProcedure, updatePricing, type Workplace,
@@ -42,6 +42,8 @@ export default function DayScreen({ route }: any) {
 
     const [showPicker, setShowPicker] = useState(false);
 
+    const [loading, setLoading] = useState(true);
+
     useFocusEffect(
         useCallback(() => {
             getWorkplace(workplaceId).then(setWorkplace);
@@ -61,6 +63,7 @@ export default function DayScreen({ route }: any) {
             return i === -1 ? Number.MAX_SAFE_INTEGER : i;
         };
         setRows([...data].sort((a, b) => rank(a.procedureId) - rank(b.procedureId)));
+        setLoading(false);
     }, [workplaceId, date]);
 
     useEffect(() => {
@@ -258,7 +261,7 @@ export default function DayScreen({ route }: any) {
                     onPress={() => setShowPicker(true)}
                     onLongPress={() => setDate(todayISO())}
                 >
-                    <Text style={s.date}>{formatDate(date)}</Text>
+                    <Text style={[s.date, isFuture(date) && s.future]}>{formatDate(date)}</Text>
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => setDate(shiftDate(date, 1))}>
                     <Text style={s.arrow}>›</Text>
@@ -266,6 +269,12 @@ export default function DayScreen({ route }: any) {
                 <View style={s.spacer} />
                 <Text style={s.share}>{workplace?.default_share ?? 0}%</Text>
             </View>
+
+            {date !== todayISO() && (
+                <Pressable onPress={() => setDate(todayISO())}>
+                    <Text style={s.backToday}>← wróć do dzisiaj</Text>
+                </Pressable>
+            )}
 
             <TextInput
                 style={s.search}
@@ -336,7 +345,6 @@ export default function DayScreen({ route }: any) {
                     value={toDate(date)}
                     mode="date"
                     display="calendar"
-                    maximumDate={new Date()}
                     onChange={(event, selected) => {
                         setShowPicker(false);
                         if (event.type === 'set' && selected) setDate(fromDate(selected));
@@ -390,6 +398,12 @@ const s = StyleSheet.create({
     },
     arrow: { fontSize: 26, color: colors.muted },
     date: { fontSize: 17, fontWeight: '600', color: colors.text, minWidth: 90, textAlign: 'center' },
+    future: { color: colors.accent },
+    backToday: {
+        paddingHorizontal: spacing.lg, paddingBottom: spacing.sm,
+        fontSize: 13, color: colors.accent,
+    },
+    removedName: { color: colors.muted, fontStyle: 'italic' },
     spacer: { flex: 1 },
     share: { fontSize: 14, color: colors.muted },
     search: {
