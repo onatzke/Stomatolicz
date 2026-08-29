@@ -17,6 +17,7 @@ import { getDb } from '../db';
 import { decrement, increment, loadDay, loadOrder, type DayRow } from '../db/entries';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
+
 type Dialog =
     | { kind: 'custom'; row: DayRow }
     | { kind: 'price'; row: DayRow }
