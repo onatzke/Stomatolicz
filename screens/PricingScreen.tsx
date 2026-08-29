@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import FormModal from '../components/FormModal';
 import { colors, spacing } from '../lib/theme';
@@ -9,6 +9,7 @@ import { formatPLN, parsePLN, parsePercent } from '../lib/money';
 import {
     addProcedure, listPricing, removeProcedure, updatePricing, type PricingRow,
 } from '../db/catalog';
+import { deleteProcedureEverywhere } from '../db/catalog';
 
 export default function PricingScreen({ route }: any) {
     const { workplaceId } = route.params;
@@ -72,17 +73,42 @@ export default function PricingScreen({ route }: any) {
             'SELECT COUNT(*) AS n FROM entries WHERE procedure_id = ?',
             [target.procedure_id],
         );
-        const count = used?.n ?? 0;
+        const elsewhere = await db.getFirstAsync<{ n: number }>(
+            'SELECT COUNT(*) AS n FROM workplace_procedures WHERE procedure_id = ? AND workplace_id != ?',
+            [target.procedure_id, workplaceId],
+        );
 
-        confirmDelete(
-            count === 0
-                ? `Procedura „${target.name}" zostanie usunięta całkowicie.`
-                : `Procedura „${target.name}" zniknie z tego miejsca pracy. Wpisy w historii (${count}) zostaną zachowane.`,
-            async () => {
-                await removeProcedure(workplaceId, target.procedure_id);
-                setEditing(null);
-                reload();
-            },
+        const entries = used?.n ?? 0;
+        const others = elsewhere?.n ?? 0;
+
+        const details = [
+            others > 0 ? `Używana w innych miejscach pracy: ${others}.` : null,
+            entries > 0 ? `Wpisy w historii (${entries}) zostaną zachowane.` : null,
+        ]
+            .filter(Boolean)
+            .join(' ');
+
+        async function run(action: () => Promise<void>) {
+            await action();
+            setEditing(null);
+            reload();
+        }
+
+        Alert.alert(
+            target.name,
+            `Jak usunąć tę procedurę? ${details}`.trim(),
+            [
+                { text: 'Anuluj', style: 'cancel' },
+                {
+                    text: 'Tylko tutaj',
+                    onPress: () => run(() => removeProcedure(workplaceId, target.procedure_id)),
+                },
+                {
+                    text: 'Wszędzie',
+                    style: 'destructive',
+                    onPress: () => run(() => deleteProcedureEverywhere(target.procedure_id)),
+                },
+            ],
         );
     }
 
@@ -139,7 +165,7 @@ export default function PricingScreen({ route }: any) {
                 error={error}
                 destructive={
                     editing !== 'new' && editing
-                        ? { label: 'Usuń z tego miejsca pracy', onPress: remove }
+                        ? { label: 'Usuń procedurę', onPress: remove }
                         : undefined
                 }
                 saveLabel={editing === 'new' ? 'Dodaj' : 'Zapisz'}

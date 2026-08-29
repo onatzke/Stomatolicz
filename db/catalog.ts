@@ -22,13 +22,26 @@ export async function listWorkplaces(): Promise<Workplace[]> {
     );
 }
 
-export async function createWorkplace(name: string, share: number): Promise<void> {
+export async function createWorkplace(name: string, share: number): Promise<number> {
     const db = await getDb();
-    await db.runAsync(
-        `INSERT INTO workplaces (name, default_share, sort_order, created_at)
-     VALUES (?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM workplaces), datetime('now'))`,
-        [name, share],
-    );
+    let id = 0;
+
+    await db.withTransactionAsync(async () => {
+        const result = await db.runAsync(
+            `INSERT INTO workplaces (name, default_share, sort_order, created_at)
+       VALUES (?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM workplaces), datetime('now'))`,
+            [name, share],
+        );
+        id = result.lastInsertRowId;
+
+        await db.runAsync(
+            `INSERT INTO workplace_procedures (workplace_id, procedure_id, price_cents, share_percent)
+       SELECT ?, id, 0, NULL FROM procedures WHERE is_archived = 0`,
+            [id],
+        );
+    });
+
+    return id;
 }
 
 export async function updateWorkplace(id: number, name: string, share: number): Promise<void> {
@@ -78,6 +91,12 @@ export async function addProcedure(workplaceId: number, name: string): Promise<v
             `INSERT OR IGNORE INTO procedures (name, created_at) VALUES (?, datetime('now'))`,
             [name],
         );
+
+        await db.runAsync(
+            `UPDATE procedures SET is_archived = 0 WHERE name = ? COLLATE NOCASE`,
+            [name],
+        );
+
         const row = await db.getFirstAsync<{ id: number }>(
             `SELECT id FROM procedures WHERE name = ? COLLATE NOCASE`,
             [name],
@@ -95,21 +114,48 @@ export async function addProcedure(workplaceId: number, name: string): Promise<v
 
 export async function removeProcedure(workplaceId: number, procedureId: number): Promise<void> {
     const db = await getDb();
+
     const used = await db.getFirstAsync<{ n: number }>(
         `SELECT COUNT(*) AS n FROM entries WHERE procedure_id = ?`,
         [procedureId],
     );
+    const elsewhere = await db.getFirstAsync<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM workplace_procedures
+     WHERE procedure_id = ? AND workplace_id != ?`,
+        [procedureId, workplaceId],
+    );
 
-    if ((used?.n ?? 0) === 0) {
+    const canDelete = (used?.n ?? 0) === 0 && (elsewhere?.n ?? 0) === 0;
+
+    if (canDelete) {
         await db.withTransactionAsync(async () => {
             await db.runAsync(`DELETE FROM workplace_procedures WHERE procedure_id = ?`, [procedureId]);
             await db.runAsync(`DELETE FROM procedures WHERE id = ?`, [procedureId]);
         });
     } else {
         await db.runAsync(
-            `UPDATE workplace_procedures SET is_active = 0
-       WHERE workplace_id = ? AND procedure_id = ?`,
+            `DELETE FROM workplace_procedures WHERE workplace_id = ? AND procedure_id = ?`,
             [workplaceId, procedureId],
         );
     }
+}
+
+
+export async function deleteProcedureEverywhere(procedureId: number): Promise<void> {
+    const db = await getDb();
+
+    const used = await db.getFirstAsync<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM entries WHERE procedure_id = ?`,
+        [procedureId],
+    );
+    const hasHistory = (used?.n ?? 0) > 0;
+
+    await db.withTransactionAsync(async () => {
+        await db.runAsync(`DELETE FROM workplace_procedures WHERE procedure_id = ?`, [procedureId]);
+        if (hasHistory) {
+            await db.runAsync(`UPDATE procedures SET is_archived = 1 WHERE id = ?`, [procedureId]);
+        } else {
+            await db.runAsync(`DELETE FROM procedures WHERE id = ?`, [procedureId]);
+        }
+    });
 }
