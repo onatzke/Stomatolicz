@@ -18,7 +18,7 @@ export default function Counter({ quantity, onIncrement, onDecrement }: Props) {
         <View style={s.wrap}>
             {quantity > 0 ? (
                 <Pressable hitSlop={8} style={s.button} onPress={() => tap(onDecrement)}>
-                    <Text style={s.symbol}>−</Text>
+                    <Text style={[s.symbol, s.minus]}>−</Text>
                 </Pressable>
             ) : (
                 <View style={s.button} />
@@ -38,6 +38,7 @@ const s = StyleSheet.create({
     button: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
     symbol: { fontSize: 24, color: colors.muted },
     plus: { color: colors.accent },
+    minus: { color: colors.minus },
     count: { fontSize: 17, minWidth: 24, textAlign: 'center', color: colors.text },
     zero: { color: colors.border },
 });

@@ -66,7 +66,7 @@ export default function WorkplacesScreen({ navigation }: any) {
                     <Pressable
                         style={s.row}
                         onPress={() =>
-                            navigation.navigate('Pricing', { workplaceId: item.id, title: item.name })
+                            navigation.navigate('Day', { workplaceId: item.id, title: item.name })
                         }
                         onLongPress={() => open(item)}
                     >

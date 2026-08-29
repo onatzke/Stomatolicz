@@ -1,11 +1,8 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Pressable, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import DayScreen from './screens/DayScreen';
 import WorkplacesScreen from './screens/WorkplacesScreen';
-import PricingScreen from './screens/PricingScreen';
-import { colors } from './lib/theme';
+import DayScreen from './screens/DayScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -15,26 +12,14 @@ export default function App() {
             <NavigationContainer>
                 <Stack.Navigator>
                     <Stack.Screen
-                        name="Day"
-                        component={DayScreen}
-                        options={({ navigation }) => ({
-                            title: 'Stomatolicz',
-                            headerRight: () => (
-                                <Pressable onPress={() => navigation.navigate('Workplaces')}>
-                                    <Text style={{ color: colors.accent, fontSize: 15 }}>Ustawienia</Text>
-                                </Pressable>
-                            ),
-                        })}
-                    />
-                    <Stack.Screen
                         name="Workplaces"
                         component={WorkplacesScreen}
-                        options={{ title: 'Miejsca pracy' }}
+                        options={{ title: 'Stomatolicz' }}
                     />
                     <Stack.Screen
-                        name="Pricing"
-                        component={PricingScreen}
-                        options={({ route }: any) => ({ title: route.params?.title ?? 'Cennik' })}
+                        name="Day"
+                        component={DayScreen}
+                        options={({ route }: any) => ({ title: route.params?.title ?? 'Dzień' })}
                     />
                 </Stack.Navigator>
             </NavigationContainer>

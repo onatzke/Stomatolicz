@@ -1,75 +1,71 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    FlatList, Pressable, StyleSheet, Text, TextInput, View,
+    Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import ActionSheet from '../components/ActionSheet';
 import Counter from '../components/Counter';
 import FormModal from '../components/FormModal';
 import { colors, spacing } from '../lib/theme';
 import { calculateShare, formatPLN, parsePLN, parsePercent } from '../lib/money';
 import { formatDate, shiftDate, todayISO } from '../lib/date';
-import { listWorkplaces, updatePricing, type Workplace } from '../db/catalog';
 import {
-    decrement, increment, loadDay, loadOrder, type DayRow,
-} from '../db/entries';
+    addProcedure, deleteProcedureEverywhere, getWorkplace,
+    removeProcedure, updatePricing, type Workplace,
+} from '../db/catalog';
+import { getDb } from '../db';
+import { decrement, increment, loadDay, loadOrder, type DayRow } from '../db/entries';
 
-export default function DayScreen({ navigation }: any) {
-    const [workplaces, setWorkplaces] = useState<Workplace[]>([]);
+type Dialog =
+    | { kind: 'custom'; row: DayRow }
+    | { kind: 'price'; row: DayRow }
+    | { kind: 'new' }
+    | null;
+
+export default function DayScreen({ route }: any) {
+    const { workplaceId } = route.params;
+
     const [workplace, setWorkplace] = useState<Workplace | null>(null);
     const [date, setDate] = useState(todayISO());
     const [rows, setRows] = useState<DayRow[]>([]);
     const [query, setQuery] = useState('');
-    const [focusToken, setFocusToken] = useState(0);
 
-    const [customFor, setCustomFor] = useState<DayRow | null>(null);
-    const [priceFor, setPriceFor] = useState<DayRow | null>(null);
+    const [menuFor, setMenuFor] = useState<DayRow | null>(null);
+    const [dialog, setDialog] = useState<Dialog>(null);
     const [price, setPrice] = useState('');
     const [share, setShare] = useState('');
+    const [name, setName] = useState('');
     const [error, setError] = useState<string | null>(null);
 
     const orderRef = useRef<number[] | null>(null);
 
     useFocusEffect(
         useCallback(() => {
-            let cancelled = false;
-            listWorkplaces().then((list) => {
-                if (cancelled) return;
-                setWorkplaces(list);
-                setWorkplace((prev) => {
-                    const found = prev && list.find((w) => w.id === prev.id);
-                    return found ?? list[0] ?? null;
-                });
-                setFocusToken((n) => n + 1);
-            });
-            return () => {
-                cancelled = true;
-            };
-        }, []),
+            getWorkplace(workplaceId).then(setWorkplace);
+        }, [workplaceId]),
     );
 
-    // Zmiana miejsca pracy lub dnia unieważnia zamrożoną kolejność.
+    // Zmiana dnia unieważnia zamrożoną kolejność.
     useEffect(() => {
         orderRef.current = null;
-    }, [workplace?.id, date]);
+    }, [date]);
 
     const reload = useCallback(async () => {
-        if (!workplace) return setRows([]);
-        const data = await loadDay(workplace.id, date);
-        if (!orderRef.current) orderRef.current = await loadOrder(workplace.id);
+        const data = await loadDay(workplaceId, date);
+        if (!orderRef.current) orderRef.current = await loadOrder(workplaceId);
         const order = orderRef.current;
         const rank = (id: number) => {
             const i = order.indexOf(id);
             return i === -1 ? Number.MAX_SAFE_INTEGER : i;
         };
         setRows([...data].sort((a, b) => rank(a.procedureId) - rank(b.procedureId)));
-    }, [workplace, date]);
+    }, [workplaceId, date]);
 
     useEffect(() => {
-        reload();
-    }, [reload, focusToken]);
+        if (workplace) reload();
+    }, [workplace, reload]);
 
     async function add(row: DayRow, priceCents: number, sharePercent: number) {
-        if (!workplace) return;
         const isCustom = priceCents !== row.priceCents || sharePercent !== row.sharePercent;
 
         setRows((prev) =>
@@ -94,12 +90,8 @@ export default function DayScreen({ navigation }: any) {
         );
 
         const entryId = await increment({
-            workplaceId: workplace.id,
-            date,
-            procedureId: row.procedureId,
-            priceCents,
-            sharePercent,
-            isCustom,
+            workplaceId, date, procedureId: row.procedureId,
+            priceCents, sharePercent, isCustom,
         });
 
         setRows((prev) =>
@@ -137,32 +129,85 @@ export default function DayScreen({ navigation }: any) {
         await decrement(entryId);
     }
 
-    function openCustom(row: DayRow) {
-        setCustomFor(row);
-        setPrice(row.priceCents ? String(row.priceCents / 100) : '');
-        setShare(String(row.sharePercent));
+    function openDialog(next: Dialog) {
+        setMenuFor(null);
         setError(null);
+        if (next?.kind === 'custom') {
+            setPrice(next.row.priceCents ? String(next.row.priceCents / 100) : '');
+            setShare(String(next.row.sharePercent));
+        } else if (next?.kind === 'price') {
+            setPrice(next.row.priceCents ? String(next.row.priceCents / 100) : '');
+        } else if (next?.kind === 'new') {
+            setName('');
+        }
+        setDialog(next);
     }
 
-    async function saveCustom() {
-        if (!customFor) return;
+    async function confirmRemove(row: DayRow) {
+        setMenuFor(null);
+        const db = await getDb();
+        const used = await db.getFirstAsync<{ n: number }>(
+            'SELECT COUNT(*) AS n FROM entries WHERE procedure_id = ?',
+            [row.procedureId],
+        );
+        const elsewhere = await db.getFirstAsync<{ n: number }>(
+            'SELECT COUNT(*) AS n FROM workplace_procedures WHERE procedure_id = ? AND workplace_id != ?',
+            [row.procedureId, workplaceId],
+        );
+
+        const entries = used?.n ?? 0;
+        const others = elsewhere?.n ?? 0;
+        const details = [
+            others > 0 ? `Używana w ${others} innych miejscach pracy.` : null,
+            entries > 0 ? `Wpisy w historii (${entries}) zostaną zachowane.` : null,
+        ].filter(Boolean).join(' ');
+
+        async function run(action: () => Promise<void>) {
+            await action();
+            orderRef.current = null;
+            reload();
+        }
+
+        Alert.alert(row.name, `Jak usunąć tę procedurę? ${details}`.trim(), [
+            { text: 'Anuluj', style: 'cancel' },
+            {
+                text: 'Tylko tutaj',
+                onPress: () => run(() => removeProcedure(workplaceId, row.procedureId)),
+            },
+            {
+                text: 'Wszędzie',
+                style: 'destructive',
+                onPress: () => run(() => deleteProcedureEverywhere(row.procedureId)),
+            },
+        ]);
+    }
+
+    async function save() {
+        if (!dialog) return;
+
+        if (dialog.kind === 'new') {
+            const trimmed = name.trim();
+            if (!trimmed) return setError('Podaj nazwę procedury.');
+            await addProcedure(workplaceId, trimmed);
+            setDialog(null);
+            orderRef.current = null;
+            return reload();
+        }
+
         const cents = parsePLN(price);
         if (cents === null) return setError('Kwota musi być liczbą, np. 350 lub 350,50.');
+
+        if (dialog.kind === 'price') {
+            await updatePricing(workplaceId, dialog.row.procedureId, cents, null);
+            setDialog(null);
+            return reload();
+        }
+
         const percent = parsePercent(share);
         if (percent === null) return setError('Procent musi być liczbą od 0 do 100.');
-
-        const target = customFor;
-        setCustomFor(null);
+        const target = dialog.row;
+        setDialog(null);
         await add(target, cents, percent);
-    }
-
-    async function savePrice() {
-        if (!priceFor || !workplace) return;
-        const cents = parsePLN(price);
-        if (cents === null) return setError('Kwota musi być liczbą, np. 350.');
-        await updatePricing(workplace.id, priceFor.procedureId, cents, null);
-        setPriceFor(null);
-        reload();
     }
 
     const visible = query.trim()
@@ -173,10 +218,7 @@ export default function DayScreen({ navigation }: any) {
         (sum, r) =>
             sum +
             calculateShare(r.quantity, r.priceCents, r.sharePercent) +
-            r.custom.reduce(
-                (s, c) => s + calculateShare(c.quantity, c.priceCents, c.sharePercent),
-                0,
-            ),
+            r.custom.reduce((s, c) => s + calculateShare(c.quantity, c.priceCents, c.sharePercent), 0),
         0,
     );
 
@@ -185,22 +227,24 @@ export default function DayScreen({ navigation }: any) {
         0,
     );
 
-    function cycleWorkplace() {
-        if (workplaces.length < 2 || !workplace) return;
-        const i = workplaces.findIndex((w) => w.id === workplace.id);
-        setWorkplace(workplaces[(i + 1) % workplaces.length]);
-    }
+    const fields =
+        dialog?.kind === 'new'
+            ? [{ key: 'name', label: 'Nazwa', value: name, onChange: setName, autoFocus: true }]
+            : dialog?.kind === 'price'
+                ? [{
+                    key: 'price', label: 'Kwota z cennika', value: price,
+                    onChange: setPrice, numeric: true, autoFocus: true,
+                }]
+                : [
+                    {
+                        key: 'price', label: 'Kwota za sztukę', value: price,
+                        onChange: setPrice, numeric: true, autoFocus: true,
+                    },
+                    { key: 'share', label: 'Mój procent', value: share, onChange: setShare, numeric: true },
+                ];
 
-    if (!workplace) {
-        return (
-            <View style={s.empty}>
-                <Text style={s.emptyText}>Najpierw dodaj miejsce pracy.</Text>
-                <Pressable onPress={() => navigation.navigate('Workplaces')}>
-                    <Text style={s.link}>Przejdź do ustawień</Text>
-                </Pressable>
-            </View>
-        );
-    }
+    const dialogTitle =
+        dialog?.kind === 'new' ? 'Nowa procedura' : dialog ? dialog.row.name : '';
 
     return (
         <View style={s.container}>
@@ -215,9 +259,7 @@ export default function DayScreen({ navigation }: any) {
                     <Text style={s.arrow}>›</Text>
                 </Pressable>
                 <View style={s.spacer} />
-                <Pressable onPress={cycleWorkplace} onLongPress={() => navigation.navigate('Workplaces')}>
-                    <Text style={s.workplace}>{workplace.name}</Text>
-                </Pressable>
+                <Text style={s.share}>{workplace?.default_share ?? 0}%</Text>
             </View>
 
             <TextInput
@@ -234,11 +276,7 @@ export default function DayScreen({ navigation }: any) {
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
                     <View style={s.block}>
-                        <Pressable
-                            style={s.row}
-                            onLongPress={() => openCustom(item)}
-                            delayLongPress={350}
-                        >
+                        <Pressable style={s.row} onLongPress={() => setMenuFor(item)} delayLongPress={350}>
                             <View style={s.info}>
                                 <Text style={s.name}>{item.name}</Text>
                                 <Text style={s.price}>
@@ -247,13 +285,7 @@ export default function DayScreen({ navigation }: any) {
                             </View>
 
                             {item.priceCents === 0 && !item.removed ? (
-                                <Pressable
-                                    onPress={() => {
-                                        setPriceFor(item);
-                                        setPrice('');
-                                        setError(null);
-                                    }}
-                                >
+                                <Pressable onPress={() => openDialog({ kind: 'price', row: item })}>
                                     <Text style={s.setPrice}>ustaw cenę</Text>
                                 </Pressable>
                             ) : (
@@ -268,9 +300,7 @@ export default function DayScreen({ navigation }: any) {
                         {item.custom.map((c, i) => (
                             <View key={`${c.priceCents}-${c.sharePercent}`} style={[s.row, s.sub]}>
                                 <View style={s.info}>
-                                    <Text style={s.price}>
-                                        ↳ {formatPLN(c.priceCents)} · {c.sharePercent}%
-                                    </Text>
+                                    <Text style={s.price}>↳ {formatPLN(c.priceCents)} · {c.sharePercent}%</Text>
                                 </View>
                                 <Counter
                                     quantity={c.quantity}
@@ -281,51 +311,54 @@ export default function DayScreen({ navigation }: any) {
                         ))}
                     </View>
                 )}
+                ListFooterComponent={
+                    <Pressable style={s.add} onPress={() => openDialog({ kind: 'new' })}>
+                        <Text style={s.addText}>+ Dodaj procedurę</Text>
+                    </Pressable>
+                }
                 ListEmptyComponent={
-                    <Text style={s.hint}>
-                        {query ? 'Brak pasujących procedur.' : 'Cennik tego miejsca jest pusty.'}
-                    </Text>
+                    query ? <Text style={s.hint}>Brak pasujących procedur.</Text> : null
                 }
             />
 
             <View style={s.footer}>
-                <Text style={s.footerCount}>
-                    {count} {count === 1 ? 'zabieg' : 'zabiegów'}
-                </Text>
+                <Text style={s.footerCount}>{count} {count === 1 ? 'zabieg' : 'zabiegów'}</Text>
                 <Text style={s.total}>{formatPLN(total)}</Text>
             </View>
 
-            <FormModal
-                visible={customFor !== null}
-                title={customFor?.name ?? ''}
-                fields={[
-                    {
-                        key: 'price', label: 'Kwota za 1 procedurę', value: price,
-                        onChange: setPrice, numeric: true, autoFocus: true,
-                    },
-                    {
-                        key: 'share', label: 'Mój procent', value: share,
-                        onChange: setShare, numeric: true,
-                    },
-                ]}
-                error={error}
-                saveLabel="Dodaj"
-                onSave={saveCustom}
-                onCancel={() => setCustomFor(null)}
+            <ActionSheet
+                visible={menuFor !== null}
+                title={menuFor?.name ?? ''}
+                onCancel={() => setMenuFor(null)}
+                actions={
+                    menuFor
+                        ? [
+                            {
+                                label: 'Dodaj z inną kwotą',
+                                onPress: () => openDialog({ kind: 'custom', row: menuFor }),
+                            },
+                            {
+                                label: 'Zmień cenę w cenniku',
+                                onPress: () => openDialog({ kind: 'price', row: menuFor }),
+                            },
+                            {
+                                label: 'Usuń procedurę',
+                                destructive: true,
+                                onPress: () => confirmRemove(menuFor),
+                            },
+                        ]
+                        : []
+                }
             />
 
             <FormModal
-                visible={priceFor !== null}
-                title={priceFor?.name ?? ''}
-                fields={[
-                    {
-                        key: 'price', label: 'Kwota z cennika', value: price,
-                        onChange: setPrice, numeric: true, autoFocus: true,
-                    },
-                ]}
+                visible={dialog !== null}
+                title={dialogTitle}
+                fields={fields}
                 error={error}
-                onSave={savePrice}
-                onCancel={() => setPriceFor(null)}
+                saveLabel={dialog?.kind === 'custom' ? 'Dodaj' : dialog?.kind === 'new' ? 'Dodaj' : 'Zapisz'}
+                onSave={save}
+                onCancel={() => setDialog(null)}
             />
         </View>
     );
@@ -340,7 +373,7 @@ const s = StyleSheet.create({
     arrow: { fontSize: 26, color: colors.muted },
     date: { fontSize: 17, fontWeight: '600', color: colors.text, minWidth: 90, textAlign: 'center' },
     spacer: { flex: 1 },
-    workplace: { fontSize: 14, color: colors.accent },
+    share: { fontSize: 14, color: colors.muted },
     search: {
         marginHorizontal: spacing.lg, marginBottom: spacing.sm,
         borderWidth: 1, borderColor: colors.border, borderRadius: 8,
@@ -357,6 +390,8 @@ const s = StyleSheet.create({
     name: { fontSize: 15, color: colors.text },
     price: { fontSize: 13, color: colors.muted },
     setPrice: { fontSize: 14, color: colors.accent, padding: spacing.md },
+    add: { padding: spacing.lg },
+    addText: { fontSize: 16, color: colors.accent },
     footer: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
@@ -365,7 +400,4 @@ const s = StyleSheet.create({
     footerCount: { fontSize: 14, color: colors.muted },
     total: { fontSize: 19, fontWeight: '600', color: colors.text },
     hint: { padding: spacing.lg, color: colors.muted, fontSize: 14 },
-    empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-    emptyText: { fontSize: 15, color: colors.muted },
-    link: { fontSize: 16, color: colors.accent },
 });

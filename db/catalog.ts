@@ -159,3 +159,11 @@ export async function deleteProcedureEverywhere(procedureId: number): Promise<vo
         }
     });
 }
+
+export async function getWorkplace(id: number): Promise<Workplace | null> {
+    const db = await getDb();
+    return db.getFirstAsync<Workplace>(
+        `SELECT id, name, default_share FROM workplaces WHERE id = ?`,
+        [id],
+    );
+}
