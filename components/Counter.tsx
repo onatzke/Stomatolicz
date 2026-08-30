@@ -23,8 +23,8 @@ export default function Counter({ quantity, onIncrement, onDecrement }: Props) {
     return (
         <View style={s.wrap}>
             {quantity > 0 ? (
-                <Pressable hitSlop={6} style={s.button} onPress={() => tap(onDecrement)}>
-                    <Minus size={18} color={colors.minus} strokeWidth={2.5} />
+                <Pressable hitSlop={8} style={s.button} onPress={() => tap(onDecrement)}>
+                    <Minus size={16} color={colors.minus} strokeWidth={2.5} />
                 </Pressable>
             ) : (
                 <View style={s.button} />
@@ -32,8 +32,8 @@ export default function Counter({ quantity, onIncrement, onDecrement }: Props) {
 
             <Text style={[s.count, quantity === 0 && s.zero]}>{quantity}</Text>
 
-            <Pressable hitSlop={6} style={s.button} onPress={() => tap(onIncrement)}>
-                <Plus size={18} color={colors.accent} strokeWidth={2.5} />
+            <Pressable hitSlop={8} style={s.button} onPress={() => tap(onIncrement)}>
+                <Plus size={16} color={colors.accent} strokeWidth={2.5} />
             </Pressable>
         </View>
     );
@@ -42,7 +42,7 @@ export default function Counter({ quantity, onIncrement, onDecrement }: Props) {
 const makeStyles = (c: Colors) => ({
     wrap: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: spacing.xs },
     button: {
-        width: 38, height: 38, borderRadius: 19,
+        width: 32, height: 32, borderRadius: 16,
         alignItems: 'center' as const, justifyContent: 'center' as const,
         backgroundColor: c.surface,
     },

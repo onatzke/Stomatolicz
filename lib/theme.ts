@@ -8,6 +8,7 @@ export type Colors = {
     muted: string;
     accent: string;
     accentSoft: string;
+    highlight: string;   // tło pozycji, do której dodano procedurę
     minus: string;
     danger: string;
 };
@@ -18,20 +19,22 @@ export const themes: Record<ThemeName, Colors> = {
         surface: '#f1f5fa',
         border: '#dde5ee',
         text: '#0f1b2a',
-        muted: '#667a91',
-        accent: '#15568c',
-        accentSoft: '#d8e8f7',
+        muted: '#856691',
+        accent: '#773fbc',
+        accentSoft: '#ecd8f7',
+        highlight: '#eee4f5',
         minus: '#c8372d',
         danger: '#c8372d',
     },
     dark: {
-        bg: '#111c2a',
-        surface: '#1a2736',
-        border: '#27374a',
+        bg: 'rgba(30,20,35,0.79)',
+        surface: '#3e2a47',
+        border: '#31274a',
         text: '#e4ecf5',
-        muted: '#8397ae',
-        accent: '#6fb4e8',
-        accentSoft: '#1d3346',
+        muted: '#9983ae',
+        accent: '#a66eda',
+        accentSoft: 'rgba(76,43,90,0.94)',
+        highlight: '#43324a',
         minus: '#ef6b5e',
         danger: '#ef6b5e',
     },

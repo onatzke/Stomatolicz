@@ -111,7 +111,6 @@ export default function DayScreen({ route }: any) {
                 priceCents, sharePercent, isCustom,
             });
         } catch (error) {
-            // optymistyczna zmiana jest już na ekranie — wracamy do stanu z bazy
             reportError(error);
             return reload();
         }
@@ -316,9 +315,7 @@ export default function DayScreen({ route }: any) {
             </View>
 
             {date !== todayISO() && (
-                <Pressable onPress={() => setDate(todayISO())}>
-                    <Text style={s.backToday}>← wróć do dzisiaj</Text>
-                </Pressable>
+                <Text style={s.todayHint}>Przytrzymaj datę, żeby wrócić do dzisiaj</Text>
             )}
 
             <TextInput
@@ -343,7 +340,7 @@ export default function DayScreen({ route }: any) {
                             <View style={s.info}>
                                 <Text style={s.name}>{item.name}</Text>
                                 <Text style={s.price}>
-                                    {item.priceCents ? formatPLN(item.priceCents) : '—'} · {item.sharePercent}%
+                                    {item.priceCents ? formatPLN(item.priceCents) : '-'} · {item.sharePercent}%
                                 </Text>
                             </View>
 
@@ -450,9 +447,9 @@ const makeStyles = (c: Colors) => ({
         minWidth: 100, textAlign: 'center' as const,
     },
     future: { color: c.accent },
-    backToday: {
+    todayHint: {
         paddingHorizontal: spacing.lg, paddingBottom: spacing.sm,
-        fontSize: 13, color: c.accent,
+        fontSize: 13, color: c.muted,
     },
     spacer: { flex: 1 },
     share: { fontSize: 14, color: c.muted, ...tabular },
@@ -466,9 +463,8 @@ const makeStyles = (c: Colors) => ({
     row: {
         flexDirection: 'row' as const, alignItems: 'center' as const,
         paddingLeft: spacing.lg, paddingRight: spacing.sm, paddingVertical: spacing.xs,
-        borderLeftWidth: 3, borderLeftColor: 'transparent',
     },
-    rowActive: { borderLeftColor: c.accent },
+    rowActive: { backgroundColor: c.highlight },
     sub: { paddingLeft: spacing.xl, backgroundColor: c.surface },
     info: { flex: 1, paddingRight: spacing.sm },
     name: { fontSize: 15, color: c.text },
