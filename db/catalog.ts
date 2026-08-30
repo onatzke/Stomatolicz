@@ -6,14 +6,6 @@ export type Workplace = {
     default_share: number;
 };
 
-export type PricingRow = {
-    procedure_id: number;
-    name: string;
-    price_cents: number;
-    share_percent: number | null;
-    is_active: number;
-};
-
 export async function listWorkplaces(): Promise<Workplace[]> {
     const db = await getDb();
     return db.getAllAsync<Workplace>(
@@ -55,18 +47,6 @@ export async function updateWorkplace(id: number, name: string, share: number): 
 export async function archiveWorkplace(id: number): Promise<void> {
     const db = await getDb();
     await db.runAsync(`UPDATE workplaces SET is_archived = 1 WHERE id = ?`, [id]);
-}
-
-export async function listPricing(workplaceId: number): Promise<PricingRow[]> {
-    const db = await getDb();
-    return db.getAllAsync<PricingRow>(
-        `SELECT p.id AS procedure_id, p.name, wp.price_cents, wp.share_percent, wp.is_active
-     FROM workplace_procedures wp
-     JOIN procedures p ON p.id = wp.procedure_id
-     WHERE wp.workplace_id = ?
-     ORDER BY wp.is_active DESC, p.name COLLATE NOCASE`,
-        [workplaceId],
-    );
 }
 
 export async function updatePricing(

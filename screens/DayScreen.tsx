@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,6 +18,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useTheme } from '../lib/ThemeContext';
 import { useStyles } from '../lib/useStyles';
+import { reportError } from '../lib/reportError';
+import { showDialog } from '../lib/dialog';
 import { spacing, tabular, type Colors } from '../lib/theme';
 
 
@@ -46,14 +48,12 @@ export default function DayScreen({ route }: any) {
 
     const [showPicker, setShowPicker] = useState(false);
 
-    const [loading, setLoading] = useState(true);
-
     const s = useStyles(makeStyles);
     const { colors } = useTheme();
 
     useFocusEffect(
         useCallback(() => {
-            getWorkplace(workplaceId).then(setWorkplace);
+            getWorkplace(workplaceId).then(setWorkplace).catch(reportError);
         }, [workplaceId]),
     );
 
@@ -62,15 +62,18 @@ export default function DayScreen({ route }: any) {
     }, [date]);
 
     const reload = useCallback(async () => {
-        const data = await loadDay(workplaceId, date);
-        if (!orderRef.current) orderRef.current = await loadOrder(workplaceId);
-        const order = orderRef.current;
-        const rank = (id: number) => {
-            const i = order.indexOf(id);
-            return i === -1 ? Number.MAX_SAFE_INTEGER : i;
-        };
-        setRows([...data].sort((a, b) => rank(a.procedureId) - rank(b.procedureId)));
-        setLoading(false);
+        try {
+            const data = await loadDay(workplaceId, date);
+            if (!orderRef.current) orderRef.current = await loadOrder(workplaceId);
+            const order = orderRef.current;
+            const rank = (id: number) => {
+                const i = order.indexOf(id);
+                return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+            };
+            setRows([...data].sort((a, b) => rank(a.procedureId) - rank(b.procedureId)));
+        } catch (error) {
+            reportError(error);
+        }
     }, [workplaceId, date]);
 
     useEffect(() => {
@@ -101,10 +104,17 @@ export default function DayScreen({ route }: any) {
             }),
         );
 
-        const entryId = await increment({
-            workplaceId, date, procedureId: row.procedureId,
-            priceCents, sharePercent, isCustom,
-        });
+        let entryId: number;
+        try {
+            entryId = await increment({
+                workplaceId, date, procedureId: row.procedureId,
+                priceCents, sharePercent, isCustom,
+            });
+        } catch (error) {
+            // optymistyczna zmiana jest już na ekranie — wracamy do stanu z bazy
+            reportError(error);
+            return reload();
+        }
 
         setRows((prev) =>
             prev.map((r) => {
@@ -138,7 +148,12 @@ export default function DayScreen({ route }: any) {
             }),
         );
 
-        await decrement(entryId);
+        try {
+            await decrement(entryId);
+        } catch (error) {
+            reportError(error);
+            await reload();
+        }
     }
 
     function openDialog(next: Dialog) {
@@ -157,41 +172,56 @@ export default function DayScreen({ route }: any) {
 
     async function confirmRemove(row: DayRow) {
         setMenuFor(null);
-        const db = await getDb();
-        const used = await db.getFirstAsync<{ n: number }>(
-            'SELECT COUNT(*) AS n FROM entries WHERE procedure_id = ?',
-            [row.procedureId],
-        );
-        const elsewhere = await db.getFirstAsync<{ n: number }>(
-            'SELECT COUNT(*) AS n FROM workplace_procedures WHERE procedure_id = ? AND workplace_id != ?',
-            [row.procedureId, workplaceId],
-        );
 
-        const entries = used?.n ?? 0;
-        const others = elsewhere?.n ?? 0;
+        let entries = 0;
+        let others = 0;
+        try {
+            const db = await getDb();
+            const used = await db.getFirstAsync<{ n: number }>(
+                'SELECT COUNT(*) AS n FROM entries WHERE procedure_id = ?',
+                [row.procedureId],
+            );
+            const elsewhere = await db.getFirstAsync<{ n: number }>(
+                'SELECT COUNT(*) AS n FROM workplace_procedures WHERE procedure_id = ? AND workplace_id != ?',
+                [row.procedureId, workplaceId],
+            );
+            entries = used?.n ?? 0;
+            others = elsewhere?.n ?? 0;
+        } catch (error) {
+            return reportError(error);
+        }
+
         const details = [
             others > 0 ? `Używana w ${others} innych miejscach pracy.` : null,
             entries > 0 ? `Wpisy w historii (${entries}) zostaną zachowane.` : null,
         ].filter(Boolean).join(' ');
 
         async function run(action: () => Promise<void>) {
-            await action();
+            try {
+                await action();
+            } catch (error) {
+                return reportError(error);
+            }
             orderRef.current = null;
             reload();
         }
 
-        Alert.alert(row.name, `Jak usunąć tę procedurę? ${details}`.trim(), [
-            { text: 'Anuluj', style: 'cancel' },
-            {
-                text: 'Tylko tutaj',
-                onPress: () => run(() => removeProcedure(workplaceId, row.procedureId)),
-            },
-            {
-                text: 'Wszędzie',
-                style: 'destructive',
-                onPress: () => run(() => deleteProcedureEverywhere(row.procedureId)),
-            },
-        ]);
+        showDialog({
+            title: row.name,
+            message: `Jak usunąć tę procedurę? ${details}`.trim(),
+            buttons: [
+                {
+                    label: 'Tylko tutaj',
+                    onPress: () => run(() => removeProcedure(workplaceId, row.procedureId)),
+                },
+                {
+                    label: 'Wszędzie',
+                    destructive: true,
+                    onPress: () => run(() => deleteProcedureEverywhere(row.procedureId)),
+                },
+                { label: 'Anuluj', cancel: true },
+            ],
+        });
     }
 
     async function save() {
@@ -200,7 +230,11 @@ export default function DayScreen({ route }: any) {
         if (dialog.kind === 'new') {
             const trimmed = name.trim();
             if (!trimmed) return setError('Podaj nazwę procedury.');
-            await addProcedure(workplaceId, trimmed);
+            try {
+                await addProcedure(workplaceId, trimmed);
+            } catch (error) {
+                return reportError(error);
+            }
             setDialog(null);
             orderRef.current = null;
             return reload();
@@ -210,7 +244,11 @@ export default function DayScreen({ route }: any) {
         if (cents === null) return setError('Kwota musi być liczbą, np. 350 lub 350,50.');
 
         if (dialog.kind === 'price') {
-            await updatePricing(workplaceId, dialog.row.procedureId, cents, null);
+            try {
+                await updatePricing(workplaceId, dialog.row.procedureId, cents, null);
+            } catch (error) {
+                return reportError(error);
+            }
             setDialog(null);
             return reload();
         }

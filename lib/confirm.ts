@@ -1,12 +1,16 @@
-import { Alert } from 'react-native';
+import { showDialog } from './dialog';
 
 export function confirmDelete(
     message: string,
     onConfirm: () => void,
     confirmLabel = 'Usuń',
 ): void {
-    Alert.alert('Na pewno?', message, [
-        { text: 'Anuluj', style: 'cancel' },
-        { text: confirmLabel, style: 'destructive', onPress: onConfirm },
-    ]);
+    showDialog({
+        title: 'Na pewno?',
+        message,
+        buttons: [
+            { label: confirmLabel, destructive: true, onPress: onConfirm },
+            { label: 'Anuluj', cancel: true },
+        ],
+    });
 }

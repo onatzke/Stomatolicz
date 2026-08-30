@@ -8,6 +8,7 @@ import WorkplacesScreen from './screens/WorkplacesScreen';
 import DayScreen from './screens/DayScreen';
 import SummaryScreen from './screens/SummaryScreen';
 import ThemeToggle from './components/ThemeToggle';
+import DialogHost from './components/DialogHost';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,10 +30,17 @@ function Root() {
     };
 
     return (
-        <>
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
             <StatusBar style={name === 'dark' ? 'light' : 'dark'} />
             <NavigationContainer theme={navTheme}>
-                <Stack.Navigator screenOptions={{ headerRight: () => <ThemeToggle /> }}>
+                <Stack.Navigator
+                    screenOptions={{
+                        headerRight: () => <ThemeToggle />,
+                        // bez tego ekran jest przezroczysty i w trakcie przejścia
+                        // prześwituje białe tło okna
+                        contentStyle: { backgroundColor: colors.bg },
+                    }}
+                >
                     <Stack.Screen
                         name="Workplaces"
                         component={WorkplacesScreen}
@@ -50,7 +58,8 @@ function Root() {
                     />
                 </Stack.Navigator>
             </NavigationContainer>
-        </>
+            <DialogHost />
+        </View>
     );
 }
 

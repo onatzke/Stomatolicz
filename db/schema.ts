@@ -1,7 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const SCHEMA_VERSION = 2;
-
 const DEFAULT_PROCEDURES = [
     'Badanie stomatologiczne',
     'Znieczulenie nasiękowe',
@@ -39,8 +37,7 @@ export async function migrate(db: SQLiteDatabase): Promise<void> {
         await db.execAsync('PRAGMA user_version = 2');
     }
 
-    // Kolejne migracje dopisujemy tutaj:
-    // if (version < 2) { await migrateToV2(db); await db.execAsync('PRAGMA user_version = 2'); }
+    // Kolejne migracje dopisujemy tutaj według wzoru powyżej.
 }
 
 async function migrateToV1(db: SQLiteDatabase): Promise<void> {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatPLN } from '../lib/money';
@@ -13,6 +13,7 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '../lib/ThemeContext';
 import { useStyles } from '../lib/useStyles';
+import { reportError } from '../lib/reportError';
 import { spacing, tabular, type Colors } from '../lib/theme';
 
 type Mode = 'week' | 'month';
@@ -33,20 +34,23 @@ export default function SummaryScreen() {
     const { colors } = useTheme();
 
     const load = useCallback(async () => {
-        const [t, w, p, d] = await Promise.all([
-            totalsInRange(from, to),
-            totalsByWorkplace(from, to),
-            totalsByProcedure(from, to),
-            totalsByDay(from, to),
-        ]);
-        setTotals(t);
-        setByWorkplace(w);
-        setByProcedure(p);
-        setByDay(d);
+        try {
+            const [t, w, p, d] = await Promise.all([
+                totalsInRange(from, to),
+                totalsByWorkplace(from, to),
+                totalsByProcedure(from, to),
+                totalsByDay(from, to),
+            ]);
+            setTotals(t);
+            setByWorkplace(w);
+            setByProcedure(p);
+            setByDay(d);
+        } catch (error) {
+            reportError(error);
+        }
     }, [from, to]);
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
-    useEffect(() => { load(); }, [load]);
 
     function shift(direction: number) {
         setAnchor(mode === 'week' ? shiftDate(anchor, direction * 7) : shiftMonth(anchor, direction));

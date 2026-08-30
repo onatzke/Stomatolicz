@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useColorScheme } from 'react-native';
 import { getSetting, setSetting } from '../db/settings';
+import { reportError } from './reportError';
 import { themes, type Colors, type ThemeName } from './theme';
 
 type ThemeValue = {
@@ -12,7 +14,10 @@ type ThemeValue = {
 const ThemeContext = createContext<ThemeValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    const [name, setName] = useState<ThemeName>('light');
+    // Motyw systemowy to wstępny strzał, żeby nie mignąć jasnym tłem,
+    // zanim z bazy wczyta się wybór użytkownika.
+    const system = useColorScheme();
+    const [name, setName] = useState<ThemeName>(system === 'dark' ? 'dark' : 'light');
     const [ready, setReady] = useState(false);
 
     useEffect(() => {
@@ -20,6 +25,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             .then((stored) => {
                 if (stored === 'dark' || stored === 'light') setName(stored);
             })
+            .catch(reportError)
             .finally(() => setReady(true));
     }, []);
 
@@ -31,7 +37,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             toggle: () => {
                 const next: ThemeName = name === 'light' ? 'dark' : 'light';
                 setName(next);
-                setSetting('theme', next);
+                setSetting('theme', next).catch(reportError);
             },
         }),
         [name, ready],

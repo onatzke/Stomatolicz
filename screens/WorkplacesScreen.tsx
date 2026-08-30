@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import FormModal from '../components/FormModal';
 import { useStyles } from '../lib/useStyles';
 import { spacing, type Colors } from '../lib/theme';
 import { parsePercent } from '../lib/money';
 import { confirmDelete } from '../lib/confirm';
+import { reportError } from '../lib/reportError';
 import {
     archiveWorkplace, createWorkplace, listWorkplaces, updateWorkplace, type Workplace,
 } from '../db/catalog';
@@ -20,7 +21,7 @@ export default function WorkplacesScreen({ navigation }: any) {
     const s = useStyles(makeStyles);
 
     const reload = useCallback(() => {
-        listWorkplaces().then(setItems);
+        listWorkplaces().then(setItems).catch(reportError);
     }, []);
 
     useFocusEffect(reload);
@@ -39,8 +40,12 @@ export default function WorkplacesScreen({ navigation }: any) {
         const percent = parsePercent(share || '0');
         if (percent === null) return setError('Procent musi być liczbą od 0 do 100.');
 
-        if (editing === 'new') await createWorkplace(trimmed, percent);
-        else if (editing) await updateWorkplace(editing.id, trimmed, percent);
+        try {
+            if (editing === 'new') await createWorkplace(trimmed, percent);
+            else if (editing) await updateWorkplace(editing.id, trimmed, percent);
+        } catch (error) {
+            return reportError(error);
+        }
 
         setEditing(null);
         reload();
@@ -52,7 +57,11 @@ export default function WorkplacesScreen({ navigation }: any) {
         confirmDelete(
             `Miejsce pracy „${target.name}" zniknie z listy. Historia zarobków zostanie zachowana.`,
             async () => {
-                await archiveWorkplace(target.id);
+                try {
+                    await archiveWorkplace(target.id);
+                } catch (error) {
+                    return reportError(error);
+                }
                 setEditing(null);
                 reload();
             },
