@@ -4,15 +4,15 @@ const DEFAULT_PROCEDURES = [
     'Badanie stomatologiczne',
     'Znieczulenie nasiękowe',
     'Znieczulenie przewodowe',
-    'Wypełnienie ząb stały – 1 powierzchnia',
-    'Wypełnienie ząb stały – 2 powierzchnie',
-    'Wypełnienie ząb stały – 3 powierzchnie',
+    'Wypełnienie ząb stały - 1 powierzchnia',
+    'Wypełnienie ząb stały - 2 powierzchnie',
+    'Wypełnienie ząb stały - 3 powierzchnie',
     'Wypełnienie tymczasowe',
     'Wypełnienie glasjonomerowe',
     'Opatrunek w zębie stałym',
-    'Leczenie endodontyczne – 1 kanał',
-    'Leczenie endodontyczne – 2 kanały',
-    'Leczenie endodontyczne – 3 kanały',
+    'Leczenie endodontyczne - 1 kanał',
+    'Leczenie endodontyczne - 2 kanały',
+    'Leczenie endodontyczne - 3 kanały',
     'Ekstrakcja zęba 1-korzeniowego',
     'Ekstrakcja zęba 2-korzeniowego',
     'Ekstrakcja zęba zatrzymanego',
@@ -35,6 +35,11 @@ export async function migrate(db: SQLiteDatabase): Promise<void> {
     if (version < 2) {
         await migrateToV2(db);
         await db.execAsync('PRAGMA user_version = 2');
+    }
+
+    if (version < 3) {
+        await migrateToV3(db);
+        await db.execAsync('PRAGMA user_version = 3');
     }
 
     // Kolejne migracje dopisujemy tutaj według wzoru powyżej.
@@ -104,6 +109,25 @@ async function migrateToV2(db: SQLiteDatabase): Promise<void> {
       value TEXT NOT NULL
     );
   `);
+}
+
+async function migrateToV3(db: SQLiteDatabase): Promise<void> {
+    // Półpauza (U+2013) w nazwach procedur na zwykły dywiz.
+    // Wpisy i cenniki wiążą się z procedurą przez procedure_id, nigdy przez
+    // nazwę, więc sama zmiana tekstu nie rusza historii.
+    // NOT EXISTS pilnuje UNIQUE na name COLLATE NOCASE: gdyby istniała już
+    // procedura o docelowej nazwie, ten wiersz zostaje nietknięty, zamiast
+    // wywalić migrację i zablokować start aplikacji.
+    await db.runAsync(
+        `UPDATE procedures
+            SET name = replace(name, '–', '-')
+          WHERE name LIKE '%–%'
+            AND NOT EXISTS (
+                SELECT 1 FROM procedures other
+                 WHERE other.id != procedures.id
+                   AND other.name = replace(procedures.name, '–', '-')
+            )`,
+    );
 }
 
 async function seedInitialData(db: SQLiteDatabase): Promise<void> {

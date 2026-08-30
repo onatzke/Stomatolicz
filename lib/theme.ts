@@ -8,7 +8,7 @@ export type Colors = {
     muted: string;
     accent: string;
     accentSoft: string;
-    highlight: string;   // tło pozycji, do której dodano procedurę
+    highlight: string;
     minus: string;
     danger: string;
 };

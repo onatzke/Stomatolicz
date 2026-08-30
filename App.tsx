@@ -36,6 +36,7 @@ function Root() {
                 <Stack.Navigator
                     screenOptions={{
                         headerRight: () => <ThemeToggle />,
+                        headerShadowVisible: false,
                         // bez tego ekran jest przezroczysty i w trakcie przejścia
                         // prześwituje białe tło okna
                         contentStyle: { backgroundColor: colors.bg },
@@ -46,10 +47,12 @@ function Root() {
                         component={WorkplacesScreen}
                         options={{ title: 'Stomatolicz' }}
                     />
+                    {/* własny nagłówek w ekranie, żeby nazwa miejsca pracy
+                        i zmiana dnia tworzyły jeden blok */}
                     <Stack.Screen
                         name="Day"
                         component={DayScreen}
-                        options={({ route }: any) => ({ title: route.params?.title ?? 'Dzień' })}
+                        options={{ headerShown: false }}
                     />
                     <Stack.Screen
                         name="Summary"

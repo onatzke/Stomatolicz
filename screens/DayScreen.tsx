@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFocusEffect } from '@react-navigation/native';
 import ActionSheet from '../components/ActionSheet';
 import Counter from '../components/Counter';
 import FormModal from '../components/FormModal';
+import ThemeToggle from '../components/ThemeToggle';
 import { calculateShare, formatPLN, parsePLN, parsePercent } from '../lib/money';
 import { formatDate, fromDate, isFuture, shiftDate, toDate, todayISO } from '../lib/date';
 import {
@@ -29,7 +31,7 @@ type Dialog =
     | { kind: 'new' }
     | null;
 
-export default function DayScreen({ route }: any) {
+export default function DayScreen({ route, navigation }: any) {
     const { workplaceId } = route.params;
 
     const [workplace, setWorkplace] = useState<Workplace | null>(null);
@@ -50,6 +52,8 @@ export default function DayScreen({ route }: any) {
 
     const s = useStyles(makeStyles);
     const { colors } = useTheme();
+    // natywny nagłówek jest wyłączony, więc odstęp na pasek statusu bierzemy sami
+    const insets = useSafeAreaInsets();
 
     useFocusEffect(
         useCallback(() => {
@@ -297,21 +301,33 @@ export default function DayScreen({ route }: any) {
 
     return (
         <View style={s.container}>
-            <View style={s.header}>
-                <Pressable hitSlop={8} onPress={() => setDate(shiftDate(date, -1))}>
-                    <ChevronLeft size={24} color={colors.muted} />
-                </Pressable>
-                <Pressable
-                    onPress={() => setShowPicker(true)}
-                    onLongPress={() => setDate(todayISO())}
-                >
-                    <Text style={[s.date, isFuture(date) && s.future]}>{formatDate(date)}</Text>
-                </Pressable>
-                <Pressable hitSlop={8} onPress={() => setDate(shiftDate(date, 1))}>
-                    <ChevronRight size={24} color={colors.muted} />
-                </Pressable>
-                <View style={s.spacer} />
-                <Text style={s.share}>{workplace?.default_share ?? 0}%</Text>
+            <View style={[s.header, { paddingTop: insets.top + spacing.sm }]}>
+                <View style={s.headerTop}>
+                    <Pressable hitSlop={10} onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color={colors.text} />
+                    </Pressable>
+                    <View style={s.spacer} />
+                    <ThemeToggle />
+                </View>
+
+                <Text style={s.title} numberOfLines={1}>
+                    {workplace?.name ?? route.params?.title ?? ''}
+                </Text>
+
+                <View style={s.dateRow}>
+                    <Pressable hitSlop={8} onPress={() => setDate(shiftDate(date, -1))}>
+                        <ChevronLeft size={20} color={colors.muted} />
+                    </Pressable>
+                    <Pressable
+                        onPress={() => setShowPicker(true)}
+                        onLongPress={() => setDate(todayISO())}
+                    >
+                        <Text style={[s.date, isFuture(date) && s.future]}>{formatDate(date)}</Text>
+                    </Pressable>
+                    <Pressable hitSlop={8} onPress={() => setDate(shiftDate(date, 1))}>
+                        <ChevronRight size={20} color={colors.muted} />
+                    </Pressable>
+                </View>
             </View>
 
             {date !== todayISO() && (
@@ -331,7 +347,7 @@ export default function DayScreen({ route }: any) {
                 keyExtractor={(r) => String(r.procedureId)}
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
-                    <View style={s.block}>
+                    <View>
                         <Pressable
                             style={[s.row, (item.quantity > 0 || item.custom.length > 0) && s.rowActive]}
                             onLongPress={() => setMenuFor(item)}
@@ -439,12 +455,21 @@ export default function DayScreen({ route }: any) {
 const makeStyles = (c: Colors) => ({
     container: { flex: 1, backgroundColor: c.bg },
     header: {
-        flexDirection: 'row' as const, alignItems: 'center' as const, gap: spacing.md,
-        paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg, paddingBottom: spacing.md,
+        gap: spacing.sm,
+    },
+    headerTop: { flexDirection: 'row' as const, alignItems: 'center' as const },
+    title: {
+        fontSize: 28, fontWeight: '700' as const, color: c.text,
+        letterSpacing: -0.5,
+    },
+    dateRow: {
+        flexDirection: 'row' as const, alignItems: 'center' as const,
+        gap: spacing.xs, marginLeft: -spacing.xs,
     },
     date: {
-        fontSize: 17, fontWeight: '600' as const, color: c.text,
-        minWidth: 100, textAlign: 'center' as const,
+        fontSize: 15, fontWeight: '500' as const, color: c.muted,
+        minWidth: 96, textAlign: 'center' as const,
     },
     future: { color: c.accent },
     todayHint: {
@@ -452,17 +477,15 @@ const makeStyles = (c: Colors) => ({
         fontSize: 13, color: c.muted,
     },
     spacer: { flex: 1 },
-    share: { fontSize: 14, color: c.muted, ...tabular },
     search: {
         marginHorizontal: spacing.lg, marginBottom: spacing.sm,
-        borderWidth: 1, borderColor: c.border, borderRadius: 8,
-        paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-        fontSize: 15, color: c.text, backgroundColor: c.surface,
+        paddingVertical: spacing.sm,
+        borderBottomWidth: 1, borderBottomColor: c.border,
+        fontSize: 15, color: c.text,
     },
-    block: { borderBottomWidth: 1, borderBottomColor: c.border },
     row: {
         flexDirection: 'row' as const, alignItems: 'center' as const,
-        paddingLeft: spacing.lg, paddingRight: spacing.sm, paddingVertical: spacing.xs,
+        paddingLeft: spacing.lg, paddingRight: spacing.md, paddingVertical: spacing.sm,
     },
     rowActive: { backgroundColor: c.highlight },
     sub: { paddingLeft: spacing.xl, backgroundColor: c.surface },
@@ -474,13 +497,15 @@ const makeStyles = (c: Colors) => ({
     add: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
     addText: { fontSize: 16, color: c.accent },
     footer: {
-        flexDirection: 'row' as const, alignItems: 'center' as const,
+        flexDirection: 'row' as const, alignItems: 'baseline' as const,
         justifyContent: 'space-between' as const,
-        paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
-        borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg,
+        paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.lg,
     },
     footerCount: { fontSize: 14, color: c.muted },
-    total: { fontSize: 22, fontWeight: '600' as const, color: c.text, ...tabular },
+    total: {
+        fontSize: 28, fontWeight: '700' as const, color: c.text,
+        letterSpacing: -0.5, ...tabular,
+    },
     hint: {
         paddingHorizontal: spacing.lg, paddingTop: spacing.sm,
         fontSize: 13, color: c.muted, lineHeight: 19,
