@@ -9,6 +9,7 @@ export type Colors = {
     accent: string;
     accentSoft: string;
     highlight: string;
+    overlay: string;
     minus: string;
     danger: string;
 };
@@ -23,11 +24,12 @@ export const themes: Record<ThemeName, Colors> = {
         accent: '#773fbc',
         accentSoft: '#ecd8f7',
         highlight: '#eee4f5',
-        minus: '#c8372d',
-        danger: '#c8372d',
+        overlay: 'rgba(241,245,250,0.93)',
+        minus: '#c82d80',
+        danger: '#bf2c7b',
     },
     dark: {
-        bg: 'rgba(30,20,35,0.79)',
+        bg: '#1e1423',
         surface: '#3e2a47',
         border: '#31274a',
         text: '#e4ecf5',
@@ -35,8 +37,9 @@ export const themes: Record<ThemeName, Colors> = {
         accent: '#a66eda',
         accentSoft: 'rgba(76,43,90,0.94)',
         highlight: '#43324a',
-        minus: '#ef6b5e',
-        danger: '#ef6b5e',
+        overlay: 'rgba(62,42,71,0.93)',
+        minus: '#8f0f53',
+        danger: '#aa1a5b',
     },
 };
 

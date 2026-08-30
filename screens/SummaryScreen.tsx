@@ -153,11 +153,25 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Row({ name, detail, value }: { name: string; detail: string; value: string }) {
     const s = useStyles(makeStyles);
+    const [showFull, setShowFull] = useState(false);
+
     return (
-        <View style={s.row}>
-            <Text style={s.rowName} numberOfLines={1}>{name}</Text>
-            <Text style={s.rowDetail}>{detail}</Text>
-            <Text style={s.rowValue}>{value}</Text>
+        <View style={[s.rowWrap, showFull && s.rowWrapAbove]}>
+            {showFull && (
+                <View style={s.fullName} pointerEvents="none">
+                    <Text style={s.fullNameText}>{name}</Text>
+                </View>
+            )}
+            <Pressable
+                style={s.row}
+                onLongPress={() => setShowFull(true)}
+                onPressOut={() => setShowFull(false)}
+                delayLongPress={300}
+            >
+                <Text style={s.rowName} numberOfLines={1}>{name}</Text>
+                <Text style={s.rowDetail}>{detail}</Text>
+                <Text style={s.rowValue}>{value}</Text>
+            </Pressable>
         </View>
     );
 }
@@ -191,6 +205,16 @@ const makeStyles = (c: Colors) => ({
         textTransform: 'uppercase' as const,
         paddingHorizontal: spacing.lg, paddingBottom: spacing.sm,
     },
+    rowWrap: { position: 'relative' as const },
+    rowWrapAbove: { zIndex: 2 },
+    fullName: {
+        position: 'absolute' as const, bottom: '100%' as const,
+        left: spacing.lg, right: spacing.lg, marginBottom: spacing.xs,
+        backgroundColor: c.overlay,
+        borderRadius: 6,
+        paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    },
+    fullNameText: { fontSize: 14, color: c.text, lineHeight: 19 },
     row: {
         flexDirection: 'row' as const, alignItems: 'center' as const,
         paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
