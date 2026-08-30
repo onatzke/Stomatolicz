@@ -1,8 +1,8 @@
-import {
-    KeyboardAvoidingView, Modal, Platform, Pressable,
-    StyleSheet, Text, TextInput, View,
-} from 'react-native';
-import { colors, spacing } from '../lib/theme';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
+import { useStyles } from '../lib/useStyles';
+import { spacing, type Colors } from '../lib/theme';
+
 
 export type Field = {
     key: string;
@@ -29,6 +29,10 @@ export default function FormModal({
                                       visible, title, fields, error, saveLabel = 'Zapisz',
                                       destructive, onSave, onCancel,
                                   }: Props) {
+
+    const s = useStyles(makeStyles);
+    const { colors } = useTheme();
+
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
             <KeyboardAvoidingView
@@ -75,31 +79,32 @@ export default function FormModal({
     );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => ({
     backdrop: {
-        flex: 1, justifyContent: 'center', padding: spacing.xl,
-        backgroundColor: 'rgba(0,0,0,0.35)',
+        flex: 1, justifyContent: 'center' as const,
+        padding: spacing.xl, backgroundColor: 'rgba(0,0,0,0.45)',
     },
     card: {
-        backgroundColor: colors.bg, borderRadius: 14,
+        backgroundColor: c.bg, borderRadius: 12,
         padding: spacing.lg, gap: spacing.md,
+        borderWidth: 1, borderColor: c.border,
     },
-    title: { fontSize: 17, fontWeight: '600', color: colors.text },
+    title: { fontSize: 17, fontWeight: '600' as const, color: c.text },
     field: { gap: spacing.xs },
-    label: { fontSize: 13, color: colors.muted },
+    label: { fontSize: 13, color: c.muted },
     input: {
-        borderWidth: 1, borderColor: colors.border, borderRadius: 8,
+        borderWidth: 1, borderColor: c.border, borderRadius: 8,
         paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-        fontSize: 16, color: colors.text,
+        fontSize: 16, color: c.text, backgroundColor: c.surface,
     },
-    error: { color: colors.danger, fontSize: 13 },
-    actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.lg },
+    error: { color: c.danger, fontSize: 13 },
+    actions: { flexDirection: 'row' as const, justifyContent: 'flex-end' as const, gap: spacing.lg },
     button: { paddingVertical: spacing.sm, paddingHorizontal: spacing.sm },
-    buttonText: { fontSize: 16, color: colors.muted },
-    save: { color: colors.accent, fontWeight: '600' },
+    buttonText: { fontSize: 16, color: c.muted },
+    save: { color: c.accent, fontWeight: '600' as const },
     destructive: {
-        borderTopWidth: 1, borderTopColor: colors.border,
-        paddingTop: spacing.md, alignItems: 'center',
+        borderTopWidth: 1, borderTopColor: c.border,
+        paddingTop: spacing.md, alignItems: 'center' as const,
     },
-    destructiveText: { color: colors.danger, fontSize: 15 },
+    destructiveText: { color: c.danger, fontSize: 15 },
 });

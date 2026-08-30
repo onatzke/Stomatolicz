@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-    Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View,
-} from 'react-native';
+import { Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+
 import { useFocusEffect } from '@react-navigation/native';
 import ActionSheet from '../components/ActionSheet';
 import Counter from '../components/Counter';
 import FormModal from '../components/FormModal';
-import { colors, spacing } from '../lib/theme';
 import { calculateShare, formatPLN, parsePLN, parsePercent } from '../lib/money';
 import { formatDate, fromDate, isFuture, shiftDate, toDate, todayISO } from '../lib/date';
 import {
@@ -16,6 +15,10 @@ import {
 import { getDb } from '../db';
 import { decrement, increment, loadDay, loadOrder, type DayRow } from '../db/entries';
 import DateTimePicker from '@react-native-community/datetimepicker';
+
+import { useTheme } from '../lib/ThemeContext';
+import { useStyles } from '../lib/useStyles';
+import { spacing, tabular, type Colors } from '../lib/theme';
 
 
 type Dialog =
@@ -44,6 +47,9 @@ export default function DayScreen({ route }: any) {
     const [showPicker, setShowPicker] = useState(false);
 
     const [loading, setLoading] = useState(true);
+
+    const s = useStyles(makeStyles);
+    const { colors } = useTheme();
 
     useFocusEffect(
         useCallback(() => {
@@ -256,7 +262,7 @@ export default function DayScreen({ route }: any) {
         <View style={s.container}>
             <View style={s.header}>
                 <Pressable hitSlop={8} onPress={() => setDate(shiftDate(date, -1))}>
-                    <Text style={s.arrow}>‹</Text>
+                    <ChevronLeft size={24} color={colors.muted} />
                 </Pressable>
                 <Pressable
                     onPress={() => setShowPicker(true)}
@@ -265,7 +271,7 @@ export default function DayScreen({ route }: any) {
                     <Text style={[s.date, isFuture(date) && s.future]}>{formatDate(date)}</Text>
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => setDate(shiftDate(date, 1))}>
-                    <Text style={s.arrow}>›</Text>
+                    <ChevronRight size={24} color={colors.muted} />
                 </Pressable>
                 <View style={s.spacer} />
                 <Text style={s.share}>{workplace?.default_share ?? 0}%</Text>
@@ -291,7 +297,11 @@ export default function DayScreen({ route }: any) {
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
                     <View style={s.block}>
-                        <Pressable style={s.row} onLongPress={() => setMenuFor(item)} delayLongPress={350}>
+                        <Pressable
+                            style={[s.row, (item.quantity > 0 || item.custom.length > 0) && s.rowActive]}
+                            onLongPress={() => setMenuFor(item)}
+                            delayLongPress={350}
+                        >
                             <View style={s.info}>
                                 <Text style={s.name}>{item.name}</Text>
                                 <Text style={s.price}>
@@ -391,46 +401,54 @@ export default function DayScreen({ route }: any) {
     );
 }
 
-const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (c: Colors) => ({
+    container: { flex: 1, backgroundColor: c.bg },
     header: {
-        flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+        flexDirection: 'row' as const, alignItems: 'center' as const, gap: spacing.md,
         paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
     },
-    arrow: { fontSize: 26, color: colors.muted },
-    date: { fontSize: 17, fontWeight: '600', color: colors.text, minWidth: 90, textAlign: 'center' },
-    future: { color: colors.accent },
+    date: {
+        fontSize: 17, fontWeight: '600' as const, color: c.text,
+        minWidth: 100, textAlign: 'center' as const,
+    },
+    future: { color: c.accent },
     backToday: {
         paddingHorizontal: spacing.lg, paddingBottom: spacing.sm,
-        fontSize: 13, color: colors.accent,
+        fontSize: 13, color: c.accent,
     },
-    removedName: { color: colors.muted, fontStyle: 'italic' },
     spacer: { flex: 1 },
-    share: { fontSize: 14, color: colors.muted },
+    share: { fontSize: 14, color: c.muted, ...tabular },
     search: {
         marginHorizontal: spacing.lg, marginBottom: spacing.sm,
-        borderWidth: 1, borderColor: colors.border, borderRadius: 8,
+        borderWidth: 1, borderColor: c.border, borderRadius: 8,
         paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-        fontSize: 15, color: colors.text,
+        fontSize: 15, color: c.text, backgroundColor: c.surface,
     },
-    block: { borderBottomWidth: 1, borderBottomColor: colors.border },
+    block: { borderBottomWidth: 1, borderBottomColor: c.border },
     row: {
-        flexDirection: 'row', alignItems: 'center',
+        flexDirection: 'row' as const, alignItems: 'center' as const,
         paddingLeft: spacing.lg, paddingRight: spacing.sm, paddingVertical: spacing.xs,
+        borderLeftWidth: 3, borderLeftColor: 'transparent',
     },
-    sub: { paddingLeft: spacing.xl, backgroundColor: colors.surface },
+    rowActive: { borderLeftColor: c.accent },
+    sub: { paddingLeft: spacing.xl, backgroundColor: c.surface },
     info: { flex: 1, paddingRight: spacing.sm },
-    name: { fontSize: 15, color: colors.text },
-    price: { fontSize: 13, color: colors.muted },
-    setPrice: { fontSize: 14, color: colors.accent, padding: spacing.md },
-    add: { padding: spacing.lg },
-    addText: { fontSize: 16, color: colors.accent },
+    name: { fontSize: 15, color: c.text },
+    removedName: { color: c.muted, fontStyle: 'italic' as const },
+    price: { fontSize: 13, color: c.muted, ...tabular },
+    setPrice: { fontSize: 14, color: c.accent, padding: spacing.md },
+    add: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+    addText: { fontSize: 16, color: c.accent },
     footer: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        flexDirection: 'row' as const, alignItems: 'center' as const,
+        justifyContent: 'space-between' as const,
         paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
-        borderTopWidth: 1, borderTopColor: colors.border,
+        borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg,
     },
-    footerCount: { fontSize: 14, color: colors.muted },
-    total: { fontSize: 19, fontWeight: '600', color: colors.text },
-    hint: { padding: spacing.lg, color: colors.muted, fontSize: 14 },
+    footerCount: { fontSize: 14, color: c.muted },
+    total: { fontSize: 22, fontWeight: '600' as const, color: c.text, ...tabular },
+    hint: {
+        paddingHorizontal: spacing.lg, paddingTop: spacing.sm,
+        fontSize: 13, color: c.muted, lineHeight: 19,
+    },
 });

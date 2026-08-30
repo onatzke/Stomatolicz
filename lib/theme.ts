@@ -39,7 +39,5 @@ export const themes: Record<ThemeName, Colors> = {
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 };
 
-/** Cyfry równej szerokości — kolumny kwot nie "chwieją się" przy zmianie wartości. */
 export const tabular = { fontVariant: ['tabular-nums' as const] };
 
-export const colors = themes.light;

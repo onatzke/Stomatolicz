@@ -1,5 +1,6 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, spacing } from '../lib/theme';
+import { Modal, Pressable, Text, View } from 'react-native';
+import { useStyles } from '../lib/useStyles';
+import { spacing, type Colors } from '../lib/theme';
 
 export type Action = {
     label: string;
@@ -15,6 +16,8 @@ type Props = {
 };
 
 export default function ActionSheet({ visible, title, actions, onCancel }: Props) {
+    const s = useStyles(makeStyles);
+
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
             <Pressable style={s.backdrop} onPress={onCancel}>
@@ -34,21 +37,21 @@ export default function ActionSheet({ visible, title, actions, onCancel }: Props
     );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => ({
     backdrop: {
-        flex: 1, justifyContent: 'flex-end',
+        flex: 1, justifyContent: 'flex-end' as const,
         padding: spacing.md, backgroundColor: 'rgba(0,0,0,0.35)',
     },
-    card: { backgroundColor: colors.bg, borderRadius: 14, overflow: 'hidden' },
+    card: { backgroundColor: c.bg, borderRadius: 14, overflow: 'hidden' as const },
     title: {
-        fontSize: 13, color: colors.muted, textAlign: 'center',
-        paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border,
+        fontSize: 13, color: c.muted, textAlign: 'center' as const,
+        paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.border,
     },
     item: {
-        paddingVertical: spacing.lg, alignItems: 'center',
-        borderBottomWidth: 1, borderBottomColor: colors.border,
+        paddingVertical: spacing.lg, alignItems: 'center' as const,
+        borderBottomWidth: 1, borderBottomColor: c.border,
     },
-    label: { fontSize: 16, color: colors.text },
-    destructive: { color: colors.danger },
-    cancel: { color: colors.muted },
+    label: { fontSize: 16, color: c.text },
+    destructive: { color: c.danger },
+    cancel: { color: c.muted },
 });

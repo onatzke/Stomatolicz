@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import FormModal from '../components/FormModal';
-import { colors, spacing } from '../lib/theme';
+import { useStyles } from '../lib/useStyles';
+import { spacing, type Colors } from '../lib/theme';
 import { parsePercent } from '../lib/money';
 import { confirmDelete } from '../lib/confirm';
 import {
@@ -16,6 +17,7 @@ export default function WorkplacesScreen({ navigation }: any) {
     const [name, setName] = useState('');
     const [share, setShare] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const s = useStyles(makeStyles);
 
     const reload = useCallback(() => {
         listWorkplaces().then(setItems);
@@ -112,16 +114,16 @@ export default function WorkplacesScreen({ navigation }: any) {
     );
 }
 
-const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (c: Colors) => ({
+    container: { flex: 1, backgroundColor: c.bg },
     row: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const,
         paddingHorizontal: spacing.lg, paddingVertical: spacing.lg,
-        borderBottomWidth: 1, borderBottomColor: colors.border,
+        borderBottomWidth: 1, borderBottomColor: c.border,
     },
-    name: { fontSize: 16, color: colors.text, flex: 1 },
-    share: { fontSize: 16, color: colors.muted },
+    name: { fontSize: 16, color: c.text, flex: 1 },
+    share: { fontSize: 16, color: c.muted },
     add: { padding: spacing.lg },
-    addText: { fontSize: 16, color: colors.accent },
-    hint: { paddingHorizontal: spacing.lg, fontSize: 13, color: colors.muted },
+    addText: { fontSize: 16, color: c.accent },
+    hint: { paddingHorizontal: spacing.lg, fontSize: 13, color: c.muted },
 });
